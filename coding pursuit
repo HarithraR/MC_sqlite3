@@ -1,0 +1,246 @@
+##########################################coding pursuit
+
+
+Two Java files for the database
+DatabaseHelper.java raw queries, name of table, connection
+DatabaseManager.java  crud operations
+All inside java project
+
+
+#####################################1
+DatabaseHelper.java
+package com.example.so……
+
+import android.content.Context;
+import android.database.sqlite.SQLiteDatabase;
+import android.database.sqlite.SQLiteOpenHelper;
+
+public class DatabaseHelper extends SQLiteOpenHelper {
+
+    static final String DATABASE_NAME = "MY_COMPANY.DB";
+    static final int DATABASE_VERSION = 1;
+
+    static final String DATABASE_TABLE = "USERS";
+    static final String USER_ID = "_ID";
+    static final String USER_NAME = "user_name";
+    static final String USER_PASSWORD = "password";
+
+    private static final String CREATE_DB_QUERY = "CREATE TABLE " + DATABASE_TABLE +
+            " ( " + USER_ID + " INTEGER PRIMARY KEY AUTOINCREMENT, " +
+            USER_NAME + " TEXT NOT NULL, " +
+            USER_PASSWORD + " TEXT );";
+
+    public DatabaseHelper(Context context) {
+        super(context, DATABASE_NAME, null, DATABASE_VERSION);
+    }
+
+    @Override
+    public void onCreate(SQLiteDatabase db) {
+        db.execSQL(CREATE_DB_QUERY);
+    }
+
+    @Override
+    public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
+        db.execSQL("DROP TABLE IF EXISTS " + DATABASE_TABLE);
+        onCreate(db);
+    }
+}
+
+
+###################################2
+DatabaseManager.java
+
+import android.content.ContentValues;
+import android.content.Context;
+import android.database.Cursor;
+import android.database.SQLDataException;
+import android.database.sqlite.SQLiteDatabase;
+
+public class DatabaseManager {
+
+    private DatabaseHelper dbHelper;
+    private Context context;
+    private SQLiteDatabase database;
+
+    public DatabaseManager(Context c) {
+        context = c;
+    }
+
+    public DatabaseManager open() throws SQLDataException {
+        dbHelper = new DatabaseHelper(context);
+        database = dbHelper.getWritableDatabase();
+        return this;
+    }
+
+    public void close() {
+        dbHelper.close();
+    }
+
+    public void insert(String userName, String password) {
+        ContentValues contentValue = new ContentValues();
+        contentValue.put(DatabaseHelper.USER_NAME, userName);
+        contentValue.put(DatabaseHelper.USER_PASSWORD, password);
+        database.insert(DatabaseHelper.DATABASE_TABLE, null, contentValue);
+    }
+
+    public Cursor fetch() {
+        String[] columns = new String[] { DatabaseHelper.USER_ID, DatabaseHelper.USER_NAME, DatabaseHelper.USER_PASSWORD };
+        Cursor cursor = database.query(DatabaseHelper.DATABASE_TABLE, columns, null, null, null, null, null);
+        if (cursor != null) {
+            cursor.moveToFirst();
+        }
+        return cursor;
+    }
+
+    public int update(long _id, String userName, String password) {
+        ContentValues contentValues = new ContentValues();
+        contentValues.put(DatabaseHelper.USER_NAME, userName);
+        contentValues.put(DatabaseHelper.USER_PASSWORD, password);
+        int i = database.update(DatabaseHelper.DATABASE_TABLE, contentValues, DatabaseHelper.USER_ID + " = " + _id, null);
+        return i;
+    }
+
+    public void delete(long _id) {
+        database.delete(DatabaseHelper.DATABASE_TABLE, DatabaseHelper.USER_ID + "=" + _id, null);
+    }
+}
+
+
+######################################3
+Activity_main.xml
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <EditText
+        android:id="@+id/editTextUserName"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="User Name"
+        android:layout_marginBottom="8dp"/>
+
+    <EditText
+        android:id="@+id/editTextPassword"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Password"
+        android:layout_marginBottom="8dp"/>
+
+    <Button
+        android:id="@+id/button"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Insert"
+        android:onClick=”btnInsertPressed”
+        android:layout_marginBottom="8dp"/>
+
+    <Button
+        android:id="@+id/buttonFetch"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Fetch"
+        android:onClick=”btnFetchPressed”
+        android:layout_marginBottom="8dp"/>
+
+    <Button
+        android:id="@+id/buttonUpdate"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Update"
+        android:onClick=”btnUpdatetPressed”
+        android:layout_marginBottom="8dp"/>
+
+    <Button
+        android:id="@+id/buttonDelete"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Delete"
+        android:onClick=”btnDeletetPressed”
+        android:layout_marginBottom="8dp"/>
+
+</LinearLayout>
+
+###########################################4
+MainActivity.java
+package …..
+import android.database.Cursor;
+import android.os.Bundle;
+import android.util.Log;
+import android.view.View;
+import android.widget.EditText;
+import android.widget.Toast;
+
+import androidx.appcompat.app.AppCompatActivity;
+
+public class MainActivity extends AppCompatActivity {
+
+    EditText editUserID;
+    EditText editUserName;
+    EditText editUserPassword;
+    DatabaseManager dbManager;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+
+        editUserID = findViewById(R.id.editTextID);
+        editUserName = findViewById(R.id.editTextUserName);
+        editUserPassword = findViewById(R.id.editTextPassword);
+
+        dbManager = new DatabaseManager(this);
+        try {
+            dbManager.open();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void btnInsertPressed(View v) {
+        try {
+            dbManager.insert(editUserName.getText().toString(), editUserPassword.getText().toString());
+            Toast.makeText(this, "Data inserted successfully", Toast.LENGTH_SHORT).show();
+        } catch (Exception e) {
+            e.printStackTrace();
+            Toast.makeText(this, "Error inserting data", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    public void btnFetchPressed(View v) {
+        Cursor cursor = dbManager.fetch();
+        if (cursor != null && cursor.moveToFirst()) {
+            do {
+                String ID = cursor.getString(cursor.getColumnIndex(DatabaseHelper.USER_ID));
+                String username = cursor.getString(cursor.getColumnIndex(DatabaseHelper.USER_NAME));
+                String password = cursor.getString(cursor.getColumnIndex(DatabaseHelper.USER_PASSWORD));
+                Log.i("DATABASE_TAG", "ID: " + ID + ", Username: " + username + ", Password: " + password);
+            } while (cursor.moveToNext());
+            cursor.close();
+        } else {
+            Toast.makeText(this, "No data found", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    public void btnUpdatePressed(View v) {
+        try {
+            dbManager.update(Long.parseLong(editUserID.getText().toString()), editUserName.getText().toString(), editUserPassword.getText().toString());
+            Toast.makeText(this, "Data updated successfully", Toast.LENGTH_SHORT).show();
+        } catch (Exception e) {
+            e.printStackTrace();
+            Toast.makeText(this, "Error updating data", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    public void btnDeletePressed(View v) {
+        try {
+            dbManager.delete(Long.parseLong(editUserID.getText().toString()));
+            Toast.makeText(this, "Data deleted successfully", Toast.LENGTH_SHORT).show();
+        } catch (Exception e) {
+            e.printStackTrace();
+            Toast.makeText(this, "Error deleting data", Toast.LENGTH_SHORT).show();
+        }
+    }
+}
